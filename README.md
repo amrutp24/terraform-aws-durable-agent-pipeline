@@ -53,6 +53,9 @@ Bedrock **model access** must be granted for `model_id` in the deployment region
 | `orchestrator_package` | Path to pre-built orchestrator zip (must bundle the durable execution SDK) | — (required) |
 | `api_package` | Path to pre-built API Lambda zip | — (required) |
 | `runtime` | Lambda runtime (durable functions: python3.13/3.14, nodejs22/24, java17/21/25) | `"python3.13"` |
+| `handler` | Lambda handler for both functions | `"lambda_function.lambda_handler"` |
+| `lambda_alias_name` | Alias pointing at the latest published orchestrator version (durable functions require qualified ARNs) | `"prod"` |
+| `api_memory_mb` / `api_timeout_seconds` | API Lambda sizing | `256` / `30` |
 | `model_id` | Bedrock model / inference-profile ID | Claude Haiku 4.5 |
 | `max_revisions` | Max writer/editor loops before human approval | `2` |
 | `approval_score_threshold` | Editor score that ends the revision loop | `8` |

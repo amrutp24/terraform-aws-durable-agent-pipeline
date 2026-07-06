@@ -14,6 +14,30 @@ variable "api_package" {
   type        = string
 }
 
+variable "lambda_alias_name" {
+  description = "Name of the alias pointing at the latest published orchestrator version. Durable functions must be invoked via a qualified ARN (version or alias); the alias gives callers a stable name while in-flight executions stay pinned to the version that started them."
+  type        = string
+  default     = "prod"
+}
+
+variable "handler" {
+  description = "Lambda handler for both functions (module.function format matching your packaged code)."
+  type        = string
+  default     = "lambda_function.lambda_handler"
+}
+
+variable "api_memory_mb" {
+  description = "Memory for the API Lambda."
+  type        = number
+  default     = 256
+}
+
+variable "api_timeout_seconds" {
+  description = "Per-invocation timeout for the API Lambda."
+  type        = number
+  default     = 30
+}
+
 variable "runtime" {
   description = "Lambda runtime for both functions. Durable functions support python3.13/python3.14 (and Node.js/Java equivalents)."
   type        = string
