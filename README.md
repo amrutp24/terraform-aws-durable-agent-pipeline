@@ -18,7 +18,7 @@ The module provisions:
 ```hcl
 module "agent_pipeline" {
   source  = "amrutp24/durable-agent-pipeline/aws"
-  version = "~> 1.0"
+  version = "~> 1.1"
 
   project_name         = "durable-ai-agent"
   orchestrator_package = "${path.root}/build/orchestrator.zip" # bundle aws-durable-execution-sdk-python
@@ -37,47 +37,43 @@ The module deploys **pre-built zip packages** — your application code and its 
 
 ## Requirements
 
-| Name | Version |
-|------|---------|
-| terraform | >= 1.5 |
-| aws | >= 6.25.0 (first release with `durable_config`) |
-| random | >= 3.6.0 |
+- **Terraform** >= 1.5
+- **AWS provider** >= 6.25.0 — the first release with `durable_config` support
+- **Random provider** >= 3.6.0
 
 Bedrock **model access** must be granted for `model_id` in the deployment region (Bedrock console → Model access).
 
 ## Inputs
 
-| Name | Description | Default |
-|------|-------------|---------|
-| `project_name` | Prefix for all resource names | `"durable-ai-agent"` |
-| `orchestrator_package` | Path to pre-built orchestrator zip (must bundle the durable execution SDK) | — (required) |
-| `api_package` | Path to pre-built API Lambda zip | — (required) |
-| `runtime` | Lambda runtime (durable functions: python3.13/3.14, nodejs22/24, java17/21/25) | `"python3.13"` |
-| `handler` | Lambda handler for both functions | `"lambda_function.lambda_handler"` |
-| `lambda_alias_name` | Alias pointing at the latest published orchestrator version (durable functions require qualified ARNs) | `"prod"` |
-| `api_memory_mb` / `api_timeout_seconds` | API Lambda sizing | `256` / `30` |
-| `model_id` | Bedrock model / inference-profile ID | Claude Haiku 4.5 |
-| `max_revisions` | Max writer/editor loops before human approval | `2` |
-| `approval_score_threshold` | Editor score that ends the revision loop | `8` |
-| `callback_timeout_seconds` | How long to wait for human approval | `86400` |
-| `durable_execution_timeout_seconds` | Max total execution lifetime | `172800` |
-| `durable_retention_period_days` | Checkpoint history retention (1–90) | `7` |
-| `orchestrator_reserved_concurrency` | Cost guardrail; `-1` to disable | `5` |
-| `api_reserved_concurrency` | Cost guardrail; `-1` to disable | `10` |
-| `log_retention_days` | CloudWatch retention | `14` |
-| `tags` | Tags for all resources | `{}` |
+> Full list with types and defaults: see the **Inputs** tab on the Terraform Registry (generated from `variables.tf`).
+
+**Required**
+
+- **`orchestrator_package`** — path to the pre-built orchestrator zip. Must bundle `aws-durable-execution-sdk-python`.
+- **`api_package`** — path to the pre-built API Lambda zip. Must bundle `boto3 >= 1.40` (for `SendDurableExecutionCallbackSuccess`).
+
+**Common knobs** (all optional, sensible defaults)
+
+- **`project_name`** — prefix for every resource name (default `durable-ai-agent`)
+- **`model_id`** — Bedrock model / inference-profile ID (default Claude Haiku 4.5)
+- **`lambda_alias_name`** — alias for the orchestrator's published version; durable functions must be invoked via a qualified ARN (default `prod`)
+- **`max_revisions`** / **`approval_score_threshold`** — editor loop tuning (default `2` / `8`)
+- **`callback_timeout_seconds`** — how long to wait for human approval (default `86400` = 24 h)
+- **`durable_execution_timeout_seconds`** / **`durable_retention_period_days`** — durable execution lifetime and checkpoint history retention (default 48 h / 7 days)
+- **`runtime`** / **`handler`** — Lambda runtime and handler (default `python3.13` / `lambda_function.lambda_handler`)
+- **`orchestrator_reserved_concurrency`** / **`api_reserved_concurrency`** — cost guardrails, `-1` to disable (default `5` / `10`; use `-1` on accounts with a total concurrency limit ≤ 50)
+- **`api_memory_mb`** / **`api_timeout_seconds`** — API Lambda sizing (default `256` / `30`)
+- **`log_retention_days`** — CloudWatch retention (default `14`)
+- **`tags`** — applied to all resources
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `api_endpoint` | Base URL of the HTTP API |
-| `orchestrator_qualified_arn` | `prod` alias ARN — durable functions must be invoked via qualified ARN |
-| `orchestrator_function_name` | Orchestrator function name |
-| `api_function_name` | API function name |
-| `posts_bucket` | Output S3 bucket |
-| `executions_table` | DynamoDB status table |
-| `orchestrator_role_arn` | Orchestrator execution role (for extending permissions) |
+- **`api_endpoint`** — base URL of the HTTP API
+- **`orchestrator_qualified_arn`** — alias ARN; durable functions must be invoked through this, never the bare function name
+- **`orchestrator_function_name`** / **`api_function_name`** — function names
+- **`posts_bucket`** — output S3 bucket
+- **`executions_table`** — DynamoDB status table
+- **`orchestrator_role_arn`** — orchestrator execution role, for attaching extra permissions
 
 ## Cost notes
 
