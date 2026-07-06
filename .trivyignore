@@ -1,0 +1,21 @@
+# Accepted exceptions - each is documented with full reasoning and a
+# "what to change if your threat model differs" note in SECURITY_POSTURE.md.
+# Everything not listed here is a hard CI failure.
+
+# API Gateway access logging: Lambda logs cover request tracing at this scale
+AVD-AWS-0001
+
+# CloudWatch log group CMK: step-progress logs only, default SSE applies
+AVD-AWS-0017
+
+# DynamoDB CMK: run-status metadata; AWS-owned key at-rest encryption is on
+AVD-AWS-0025
+
+# Lambda X-Ray: durable executions have checkpoint-level tracing built in
+AVD-AWS-0066
+
+# S3 access logging: output bucket for published, public-by-intent artifacts
+AVD-AWS-0089
+
+# S3 CMK: SSE-S3 (AES256) is enabled; CMK is a consumer decision
+AVD-AWS-0132

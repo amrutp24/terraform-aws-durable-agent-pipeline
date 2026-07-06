@@ -36,17 +36,21 @@ jobs:
       - uses: terraform-linters/setup-tflint@v4
       - run: tflint --init && tflint
 
-  tfsec:
+  # tfsec was archived into Trivy in 2024; its last release predates split S3
+  # resources and reports false positives on modern Terraform. This job runs
+  # its maintained successor with the same rule engine, hard-fail. Accepted
+  # exceptions live in .trivyignore with reasons (mirrored in SECURITY_POSTURE.md).
+  trivy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: tfsec (hard fail)
-        uses: aquasecurity/tfsec-action@v1.0.3
+      - name: Trivy misconfiguration scan (tfsec successor, hard fail)
+        uses: aquasecurity/trivy-action@0.29.0
         with:
-          working_directory: .
-          # Deliberate exceptions documented in SECURITY_POSTURE.md
-          additional_args: >-
-            --exclude aws-lambda-enable-tracing,aws-cloudwatch-log-group-customer-key,aws-s3-enable-bucket-logging,aws-s3-encryption-customer-key,aws-s3-enable-versioning,aws-api-gateway-enable-access-logging,aws-dynamodb-table-customer-key
+          scan-type: config
+          scan-ref: .
+          exit-code: "1"
+          trivyignores: .trivyignore
 
   checkov:
     runs-on: ubuntu-latest
