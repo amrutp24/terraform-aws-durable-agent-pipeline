@@ -55,6 +55,20 @@ the "If you need it" column tells you what to change downstream.
 | CloudWatch | step progress logs | Low; no payloads |
 | Lambda env | resource names + tuning | Config, not secrets |
 
+## Supply chain
+
+- **Every CI action is pinned to a full commit SHA**, never a mutable tag, with
+  the corresponding tag recorded in a trailing comment. The March 2026
+  [trivy-action compromise](https://github.com/aquasecurity/trivy/security/advisories/GHSA-69fq-xp46-6x23)
+  force-pushed credential-stealing malware to 76 of 77 of that action's version
+  tags — tag pinning is a demonstrated attack vector, not a theoretical one.
+- The Trivy action SHA used here (`57a97c7e…`, v0.35.0) is the post-incident
+  release named safe in the advisory.
+- Terraform providers are constrained in `versions.tf` and locked by consumers'
+  `.terraform.lock.hcl`.
+- The durable execution SDK must be vendored and version-pinned in consumer
+  packages (see [DESIGN.md](DESIGN.md) Rule 4).
+
 **Deliberate invariant: this module needs no secrets.** No API keys, no
 passwords, no tokens — Bedrock, DynamoDB, S3, and the durable callback API are
 all reached with the execution role. If a fork adds third-party calls, use
