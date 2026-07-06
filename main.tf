@@ -159,7 +159,7 @@ resource "aws_cloudwatch_log_group" "orchestrator" {
 resource "aws_lambda_function" "orchestrator" {
   function_name = "${var.project_name}-orchestrator"
   role          = aws_iam_role.orchestrator.arn
-  handler       = "lambda_function.lambda_handler"
+  handler       = var.handler
   runtime       = var.runtime
   timeout       = var.orchestrator_timeout_seconds
   memory_size   = var.orchestrator_memory_mb
@@ -197,7 +197,7 @@ resource "aws_lambda_function" "orchestrator" {
 # alias). Callers use this alias rather than $LATEST so in-flight executions
 # keep replaying against the code version that started them.
 resource "aws_lambda_alias" "orchestrator_prod" {
-  name             = "prod"
+  name             = var.lambda_alias_name
   function_name    = aws_lambda_function.orchestrator.function_name
   function_version = aws_lambda_function.orchestrator.version
 }
@@ -211,10 +211,10 @@ resource "aws_cloudwatch_log_group" "api" {
 resource "aws_lambda_function" "api" {
   function_name = "${var.project_name}-api"
   role          = aws_iam_role.api.arn
-  handler       = "lambda_function.lambda_handler"
+  handler       = var.handler
   runtime       = var.runtime
-  timeout       = 30
-  memory_size   = 256
+  timeout       = var.api_timeout_seconds
+  memory_size   = var.api_memory_mb
   tags          = var.tags
 
   filename         = var.api_package
