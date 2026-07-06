@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform fmt -check -recursive
+
+      - name: Validate module
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Validate example
+        working-directory: examples/complete
+        run: |
+          mkdir -p build/orchestrator build/api
+          touch build/orchestrator/lambda_function.py build/api/lambda_function.py
+          terraform init -backend=false
+          terraform validate
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+      - run: tflint --init && tflint

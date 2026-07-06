@@ -1,0 +1,7 @@
+.terraform/
+*.tfstate*
+*.tfvars
+!*.tfvars.example
+build/
+*.zip
+.terraform.lock.hcl
