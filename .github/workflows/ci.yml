@@ -35,3 +35,58 @@ jobs:
       - uses: actions/checkout@v4
       - uses: terraform-linters/setup-tflint@v4
       - run: tflint --init && tflint
+
+  tfsec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: tfsec (hard fail)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: .
+          # Deliberate exceptions documented in SECURITY_POSTURE.md
+          additional_args: >-
+            --exclude aws-lambda-enable-tracing,aws-cloudwatch-log-group-customer-key,aws-s3-enable-bucket-logging,aws-s3-encryption-customer-key,aws-s3-enable-versioning,aws-api-gateway-enable-access-logging,aws-dynamodb-table-customer-key
+
+  checkov:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkov (hard fail; exceptions are inline-reasoned, see SECURITY_POSTURE.md)
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform
+          quiet: true
+
+  terratest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Static behavioral-test compile + example validation
+        working-directory: test
+        run: |
+          go mod tidy
+          go vet ./...
+          go test -run TestExampleValidates -v -timeout 10m
+
+      # The live durable-lifecycle test (TestDurableLifecycle) deploys real
+      # infrastructure and needs AWS credentials; it runs only when the
+      # TERRATEST_AWS_ROLE secret is configured.
+      - name: Live durable-lifecycle test
+        if: ${{ vars.TERRATEST_ENABLED == 'true' }}
+        working-directory: test
+        env:
+          TERRATEST_APPLY: "1"
+        run: |
+          pip install aws-durable-execution-sdk-python -t fixtures/build/orchestrator --quiet
+          cp fixtures/orchestrator/lambda_function.py fixtures/build/orchestrator/
+          mkdir -p fixtures/build/api && cp fixtures/api/lambda_function.py fixtures/build/api/
+          go test -run TestDurableLifecycle -v -timeout 30m

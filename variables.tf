@@ -155,3 +155,14 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "api_authorization_type" {
+  description = "Authorization type for the HTTP API routes. NONE keeps the demo self-contained; AWS_IAM requires SigV4-signed requests."
+  type        = string
+  default     = "NONE"
+
+  validation {
+    condition     = contains(["NONE", "AWS_IAM"], var.api_authorization_type)
+    error_message = "api_authorization_type must be NONE or AWS_IAM."
+  }
+}

@@ -7,8 +7,8 @@ locals {
 
 # --- State stores --------------------------------------------------------------
 
-#checkov:skip=CKV_AWS_119:AWS-owned key encryption at rest is sufficient for run-status metadata
 resource "aws_dynamodb_table" "executions" {
+  #checkov:skip=CKV_AWS_119:AWS-owned key encryption at rest is sufficient for run-status metadata
   name         = "${var.project_name}-executions"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "execution_id"
@@ -28,12 +28,12 @@ resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
 
-#checkov:skip=CKV_AWS_18:Access logging needs a second bucket; out of scope for this pipeline's output bucket
-#checkov:skip=CKV_AWS_144:Cross-region replication is left to consumers with DR requirements
-#checkov:skip=CKV_AWS_145:SSE-S3 (AES256) is enabled below; a customer-managed KMS key is a consumer decision
-#checkov:skip=CKV2_AWS_61:Published posts are kept indefinitely by design; no lifecycle rules
-#checkov:skip=CKV2_AWS_62:No downstream consumers need bucket event notifications
 resource "aws_s3_bucket" "posts" {
+  #checkov:skip=CKV_AWS_18:Access logging needs a second bucket; out of scope for this pipeline's output bucket
+  #checkov:skip=CKV_AWS_144:Cross-region replication is left to consumers with DR requirements
+  #checkov:skip=CKV_AWS_145:SSE-S3 (AES256) is enabled below; a customer-managed KMS key is a consumer decision
+  #checkov:skip=CKV2_AWS_61:Published posts are kept indefinitely by design; no lifecycle rules
+  #checkov:skip=CKV2_AWS_62:No downstream consumers need bucket event notifications
   bucket        = "${var.project_name}-posts-${random_id.bucket_suffix.hex}"
   force_destroy = true
   tags          = var.tags
@@ -178,20 +178,21 @@ resource "aws_iam_role_policy" "api_inline" {
 
 # --- Lambda functions -----------------------------------------------------------
 
-#checkov:skip=CKV_AWS_158:Default CloudWatch SSE is sufficient; logs contain no sensitive payloads
 resource "aws_cloudwatch_log_group" "orchestrator" {
+  #checkov:skip=CKV_AWS_338:Retention is configurable (log_retention_days); 14-day default is a deliberate cost choice for step-progress logs
+  #checkov:skip=CKV_AWS_158:Default CloudWatch SSE is sufficient; logs contain no sensitive payloads
   name              = "/aws/lambda/${var.project_name}-orchestrator"
   retention_in_days = var.log_retention_days
   tags              = var.tags
 }
 
-#checkov:skip=CKV_AWS_50:X-Ray adds cost; durable executions have their own checkpoint-level tracing in the Lambda console
-#checkov:skip=CKV_AWS_115:Reserved concurrency is exposed as a variable; -1 supports accounts with total limit <= 50
-#checkov:skip=CKV_AWS_116:No DLQ - durable executions retain full failure state and history for durable_retention_period_days
-#checkov:skip=CKV_AWS_117:No VPC by design - the function only calls regional AWS APIs (Bedrock, DynamoDB, S3)
-#checkov:skip=CKV_AWS_173:Env vars hold non-sensitive config only (table/bucket names, model id, tuning numbers)
-#checkov:skip=CKV_AWS_272:Code signing is a consumer supply-chain decision; packages are passed in pre-built
 resource "aws_lambda_function" "orchestrator" {
+  #checkov:skip=CKV_AWS_50:X-Ray adds cost; durable executions have their own checkpoint-level tracing in the Lambda console
+  #checkov:skip=CKV_AWS_115:Reserved concurrency is exposed as a variable; -1 supports accounts with total limit <= 50
+  #checkov:skip=CKV_AWS_116:No DLQ - durable executions retain full failure state and history for durable_retention_period_days
+  #checkov:skip=CKV_AWS_117:No VPC by design - the function only calls regional AWS APIs (Bedrock, DynamoDB, S3)
+  #checkov:skip=CKV_AWS_173:Env vars hold non-sensitive config only (table/bucket names, model id, tuning numbers)
+  #checkov:skip=CKV_AWS_272:Code signing is a consumer supply-chain decision; packages are passed in pre-built
   function_name = "${var.project_name}-orchestrator"
   role          = aws_iam_role.orchestrator.arn
   handler       = var.handler
@@ -237,20 +238,21 @@ resource "aws_lambda_alias" "orchestrator_prod" {
   function_version = aws_lambda_function.orchestrator.version
 }
 
-#checkov:skip=CKV_AWS_158:Default CloudWatch SSE is sufficient; logs contain no sensitive payloads
 resource "aws_cloudwatch_log_group" "api" {
+  #checkov:skip=CKV_AWS_338:Retention is configurable (log_retention_days); 14-day default is a deliberate cost choice for step-progress logs
+  #checkov:skip=CKV_AWS_158:Default CloudWatch SSE is sufficient; logs contain no sensitive payloads
   name              = "/aws/lambda/${var.project_name}-api"
   retention_in_days = var.log_retention_days
   tags              = var.tags
 }
 
-#checkov:skip=CKV_AWS_50:X-Ray adds cost; durable executions have their own checkpoint-level tracing in the Lambda console
-#checkov:skip=CKV_AWS_115:Reserved concurrency is exposed as a variable; -1 supports accounts with total limit <= 50
-#checkov:skip=CKV_AWS_116:No DLQ - durable executions retain full failure state and history for durable_retention_period_days
-#checkov:skip=CKV_AWS_117:No VPC by design - the function only calls regional AWS APIs (Bedrock, DynamoDB, S3)
-#checkov:skip=CKV_AWS_173:Env vars hold non-sensitive config only (table/bucket names, model id, tuning numbers)
-#checkov:skip=CKV_AWS_272:Code signing is a consumer supply-chain decision; packages are passed in pre-built
 resource "aws_lambda_function" "api" {
+  #checkov:skip=CKV_AWS_50:X-Ray adds cost; durable executions have their own checkpoint-level tracing in the Lambda console
+  #checkov:skip=CKV_AWS_115:Reserved concurrency is exposed as a variable; -1 supports accounts with total limit <= 50
+  #checkov:skip=CKV_AWS_116:No DLQ - durable executions retain full failure state and history for durable_retention_period_days
+  #checkov:skip=CKV_AWS_117:No VPC by design - the function only calls regional AWS APIs (Bedrock, DynamoDB, S3)
+  #checkov:skip=CKV_AWS_173:Env vars hold non-sensitive config only (table/bucket names, model id, tuning numbers)
+  #checkov:skip=CKV_AWS_272:Code signing is a consumer supply-chain decision; packages are passed in pre-built
   function_name = "${var.project_name}-api"
   role          = aws_iam_role.api.arn
   handler       = var.handler
@@ -290,26 +292,33 @@ resource "aws_apigatewayv2_integration" "api" {
 }
 
 resource "aws_apigatewayv2_route" "start" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "POST /posts"
-  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+  #checkov:skip=CKV_AWS_309:authorization_type is exposed as a variable; NONE is the default for the self-contained demo - set api_authorization_type="AWS_IAM" to require SigV4
+  api_id             = aws_apigatewayv2_api.http_api.id
+  authorization_type = var.api_authorization_type
+  route_key          = "POST /posts"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
 resource "aws_apigatewayv2_route" "status" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "GET /posts/{id}"
-  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+  #checkov:skip=CKV_AWS_309:authorization_type is exposed as a variable; NONE is the default for the self-contained demo - set api_authorization_type="AWS_IAM" to require SigV4
+  api_id             = aws_apigatewayv2_api.http_api.id
+  authorization_type = var.api_authorization_type
+  route_key          = "GET /posts/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
 resource "aws_apigatewayv2_route" "approve" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "POST /posts/{id}/approve"
-  target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+  #checkov:skip=CKV_AWS_309:authorization_type is exposed as a variable; NONE is the default for the self-contained demo - set api_authorization_type="AWS_IAM" to require SigV4
+  api_id             = aws_apigatewayv2_api.http_api.id
+  authorization_type = var.api_authorization_type
+  route_key          = "POST /posts/{id}/approve"
+  target             = "integrations/${aws_apigatewayv2_integration.api.id}"
 }
 
-#checkov:skip=CKV_AWS_95:Access logging needs a log group + format contract; Lambda logs cover request tracing here
-#checkov:skip=CKV2_AWS_4:Same as CKV_AWS_95 - deliberate omission for this demo-scale API
 resource "aws_apigatewayv2_stage" "default" {
+  #checkov:skip=CKV_AWS_76:Access logging needs a log group + format contract; Lambda logs cover request tracing here
+  #checkov:skip=CKV_AWS_95:Access logging needs a log group + format contract; Lambda logs cover request tracing here
+  #checkov:skip=CKV2_AWS_4:Same as CKV_AWS_95 - deliberate omission for this demo-scale API
   api_id      = aws_apigatewayv2_api.http_api.id
   name        = "$default"
   auto_deploy = true

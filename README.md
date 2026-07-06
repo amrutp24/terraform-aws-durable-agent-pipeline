@@ -1,6 +1,16 @@
 # terraform-aws-durable-agent-pipeline
 
+[![CI](https://github.com/amrutp24/terraform-aws-durable-agent-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/amrutp24/terraform-aws-durable-agent-pipeline/actions/workflows/ci.yml)
+[![Registry](https://img.shields.io/badge/terraform-registry-844FBA?logo=terraform)](https://registry.terraform.io/modules/amrutp24/durable-agent-pipeline/aws)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Terraform module for a **human-in-the-loop AI agent pipeline** on AWS Lambda **durable functions** — the checkpoint/replay execution model AWS launched at re:Invent 2025 that lets a function suspend (for up to a year, at zero compute cost) and resume exactly where it left off.
+
+This is (to our knowledge) the first registry module for Lambda durable functions, and it aims to set the bar for the domain rather than follow one:
+
+- **[DESIGN.md](DESIGN.md)** — the seven rules for building on durable functions (qualified ARNs, the versioned-ARN callback grant, SDK pinning, dual timeouts…), each learned against a live deployment
+- **[SECURITY_POSTURE.md](SECURITY_POSTURE.md)** — scanners run hard-fail in CI; every accepted exception is inline-reasoned and published for review
+- **[test/](test)** — a behavioral test that proves the durable lifecycle (start → suspend → external callback → resume → result), not just that resources create
 
 The module provisions:
 
