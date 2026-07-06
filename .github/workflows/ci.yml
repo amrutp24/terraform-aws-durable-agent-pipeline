@@ -7,12 +7,17 @@ on:
 permissions:
   contents: read
 
+# Supply-chain policy: every third-party action is pinned to a full commit SHA,
+# never a mutable tag. The March 2026 trivy-action compromise force-pushed
+# malware to 76 of 77 version tags - tag pinning is a proven attack vector.
+# The trailing comment records the tag each SHA corresponds to.
+
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
 
       - run: terraform fmt -check -recursive
 
@@ -32,20 +37,20 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
       - run: tflint --init && tflint
 
-  # tfsec was archived into Trivy in 2024; its last release predates split S3
-  # resources and reports false positives on modern Terraform. This job runs
-  # its maintained successor with the same rule engine, hard-fail. Accepted
-  # exceptions live in .trivyignore with reasons (mirrored in SECURITY_POSTURE.md).
+  # tfsec was archived into Trivy in 2024; this runs its maintained successor,
+  # hard-fail. Accepted exceptions live in .trivyignore with reasons (mirrored
+  # in SECURITY_POSTURE.md). SHA below is v0.35.0 - the post-incident release
+  # named safe in GHSA-69fq-xp46-6x23.
   trivy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Trivy misconfiguration scan (tfsec successor, hard fail)
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
         with:
           scan-type: config
           scan-ref: .
@@ -55,9 +60,9 @@ jobs:
   checkov:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Checkov (hard fail; exceptions are inline-reasoned, see SECURITY_POSTURE.md)
-        uses: bridgecrewio/checkov-action@v12
+        uses: bridgecrewio/checkov-action@7e3930d7acb8482fd506c495250290b269e2e640 # v12.3055.0
         with:
           directory: .
           framework: terraform
@@ -66,24 +71,23 @@ jobs:
   terratest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
         with:
           terraform_wrapper: false
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version: "1.22"
+          go-version: "1.23"
 
       - name: Static behavioral-test compile + example validation
         working-directory: test
         run: |
-          go mod tidy
           go vet ./...
           go test -run TestExampleValidates -v -timeout 10m
 
       # The live durable-lifecycle test (TestDurableLifecycle) deploys real
       # infrastructure and needs AWS credentials; it runs only when the
-      # TERRATEST_AWS_ROLE secret is configured.
+      # repository variable TERRATEST_ENABLED is set to 'true'.
       - name: Live durable-lifecycle test
         if: ${{ vars.TERRATEST_ENABLED == 'true' }}
         working-directory: test
