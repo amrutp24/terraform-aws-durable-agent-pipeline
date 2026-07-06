@@ -2,6 +2,11 @@
 
 All notable changes to this module. Versions follow [SemVer](https://semver.org).
 
+## [1.3.1] - 2026-07-06
+
+### Changed
+- License changed from MIT to Apache-2.0 (explicit patent grant; matches the Terraform module ecosystem convention). Added NOTICE file.
+
 ## [1.3.0] - 2026-07-05
 
 ### Added

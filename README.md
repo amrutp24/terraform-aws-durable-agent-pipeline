@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/amrutp24/terraform-aws-durable-agent-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/amrutp24/terraform-aws-durable-agent-pipeline/actions/workflows/ci.yml)
 [![Registry](https://img.shields.io/badge/terraform-registry-844FBA?logo=terraform)](https://registry.terraform.io/modules/amrutp24/durable-agent-pipeline/aws)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 Terraform module for a **human-in-the-loop AI agent pipeline** on AWS Lambda **durable functions** — the checkpoint/replay execution model AWS launched at re:Invent 2025 that lets a function suspend (for up to a year, at zero compute cost) and resume exactly where it left off.
 
@@ -183,4 +183,4 @@ Maintained by [Amrut Pagidipally](https://github.com/amrutp24).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Apache-2.0 — see [LICENSE](LICENSE).
