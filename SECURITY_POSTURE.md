@@ -1,10 +1,16 @@
 # Security posture
 
-This module runs Checkov and tfsec in CI with **hard fail** — no soft-fail flag,
-no global suppressions. Every finding is either fixed or carries an inline,
-reasoned skip at the resource it applies to, listed here for review. If your
-threat model disagrees with a decision, the "If you need it" column tells you
-what to change downstream.
+This module runs Checkov and Trivy (tfsec's maintained successor) in CI with
+**hard fail** — no soft-fail flag, no global suppressions. Every finding is
+either fixed or carries a reasoned exception: inline `#checkov:skip` comments
+at the resource, and [`.trivyignore`](.trivyignore) entries with comments,
+all listed here for review. If your threat model disagrees with a decision,
+the "If you need it" column tells you what to change downstream.
+
+> Why Trivy and not tfsec itself: tfsec was archived into Trivy in 2024. Its
+> final release predates the AWS provider's split S3 resources, so it reports
+> encryption/versioning as missing even when they're configured — a scanner
+> that can't see the controls can't attest to them.
 
 ## Controls implemented
 
