@@ -2,6 +2,22 @@
 
 All notable changes to this module. Versions follow [SemVer](https://semver.org).
 
+## [1.3.0] - 2026-07-05
+
+### Added
+- Three usage scenarios in the README (minimal, tuned, locked-down SigV4)
+- terraform-docs generated reference (requirements/providers/resources/inputs/outputs), with a CI check that fails when docs drift from the code
+
+## [1.2.3] - 2026-07-05
+
+### Added
+- README for `examples/complete` (removes the registry's "internal-only" notice)
+
+## [1.2.1] / [1.2.2] - 2026-07-05
+
+### Changed
+- README wording cleanups
+
 ## [1.2.0] - 2026-07-05
 
 ### Added
