@@ -8,10 +8,10 @@ Terraform module for a **human-in-the-loop AI agent pipeline** on AWS Lambda **d
 
 The module provisions:
 
-- A **durable Lambda function** (`durable_config` enabled, published version + `prod` alias — durable functions require qualified ARNs)
+- A **durable Lambda function** (`durable_config` enabled, published version + alias — durable functions require qualified ARNs)
 - A **plain API Lambda** behind an **API Gateway HTTP API** (`POST /posts`, `GET /posts/{id}`, `POST /posts/{id}/approve`)
 - **DynamoDB** table for run status + pending-approval callback IDs
-- **S3** bucket for published output
+- **S3** bucket (SSE, versioned, public access blocked) for published output
 - **IAM** roles with least-privilege policies, including the two non-obvious grants durable functions need:
   - `AWSLambdaBasicDurableExecutionRolePolicy` on the orchestrator (checkpoint/replay permissions)
   - `lambda:SendDurableExecutionCallback*` on `"${function_arn}:*"` — callback ARNs are **sub-resources of the versioned function ARN**, so the bare function ARN never matches
@@ -19,65 +19,64 @@ The module provisions:
 
 ## Usage
 
+### Minimal
+
 ```hcl
 module "agent_pipeline" {
   source  = "amrutp24/durable-agent-pipeline/aws"
-  version = "~> 1.1"
+  version = "~> 1.2"
 
-  project_name         = "durable-ai-agent"
   orchestrator_package = "${path.root}/build/orchestrator.zip" # bundle aws-durable-execution-sdk-python
   api_package          = "${path.root}/build/api.zip"          # bundle boto3 >= 1.40
-
-  model_id                 = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-  callback_timeout_seconds = 86400
-}
-
-output "api_endpoint" {
-  value = module.agent_pipeline.api_endpoint
 }
 ```
 
-The module deploys **pre-built zip packages** — your application code and its build stay in your repo. See [examples/complete](examples/complete) for a full working setup including the Lambda source code, or the companion app repo [`durable-ai-agent-pipeline`](https://github.com/amrutp24/durable-ai-agent-pipeline) this module was extracted from.
+### Tuned pipeline with a different model and longer approval window
 
-## Requirements
+```hcl
+module "agent_pipeline" {
+  source  = "amrutp24/durable-agent-pipeline/aws"
+  version = "~> 1.2"
 
-- **Terraform** >= 1.5
-- **AWS provider** >= 6.25.0 — the first release with `durable_config` support
-- **Random provider** >= 3.6.0
+  project_name         = "content-review"
+  orchestrator_package = "${path.root}/build/orchestrator.zip"
+  api_package          = "${path.root}/build/api.zip"
 
-Bedrock **model access** must be granted for `model_id` in the deployment region (Bedrock console → Model access).
+  model_id                 = "us.anthropic.claude-sonnet-4-5-v1:0"
+  max_revisions            = 3
+  approval_score_threshold = 9
 
-## Inputs
+  callback_timeout_seconds          = 259200 # 3 days for a human to respond
+  durable_execution_timeout_seconds = 345600 # 4 days total lifetime
+}
+```
 
-> Full list with types and defaults: see the **Inputs** tab on the Terraform Registry (generated from `variables.tf`).
+### Locked-down API (SigV4) with custom sizing
 
-**Required**
+```hcl
+module "agent_pipeline" {
+  source  = "amrutp24/durable-agent-pipeline/aws"
+  version = "~> 1.2"
 
-- **`orchestrator_package`** — path to the pre-built orchestrator zip. Must bundle `aws-durable-execution-sdk-python`.
-- **`api_package`** — path to the pre-built API Lambda zip. Must bundle `boto3 >= 1.40` (for `SendDurableExecutionCallbackSuccess`).
+  orchestrator_package = "${path.root}/build/orchestrator.zip"
+  api_package          = "${path.root}/build/api.zip"
 
-**Common knobs** (all optional, sensible defaults)
+  api_authorization_type = "AWS_IAM" # callers must sign requests
 
-- **`project_name`** — prefix for every resource name (default `durable-ai-agent`)
-- **`model_id`** — Bedrock model / inference-profile ID (default Claude Haiku 4.5)
-- **`lambda_alias_name`** — alias for the orchestrator's published version; durable functions must be invoked via a qualified ARN (default `prod`)
-- **`max_revisions`** / **`approval_score_threshold`** — editor loop tuning (default `2` / `8`)
-- **`callback_timeout_seconds`** — how long to wait for human approval (default `86400` = 24 h)
-- **`durable_execution_timeout_seconds`** / **`durable_retention_period_days`** — durable execution lifetime and checkpoint history retention (default 48 h / 7 days)
-- **`runtime`** / **`handler`** — Lambda runtime and handler (default `python3.13` / `lambda_function.lambda_handler`)
-- **`orchestrator_reserved_concurrency`** / **`api_reserved_concurrency`** — cost guardrails, `-1` to disable (default `5` / `10`; use `-1` on accounts with a total concurrency limit ≤ 50)
-- **`api_memory_mb`** / **`api_timeout_seconds`** — API Lambda sizing (default `256` / `30`)
-- **`log_retention_days`** — CloudWatch retention (default `14`)
-- **`tags`** — applied to all resources
+  orchestrator_memory_mb            = 1024
+  orchestrator_reserved_concurrency = 20
+  api_reserved_concurrency          = 50
+  log_retention_days                = 90
 
-## Outputs
+  tags = {
+    Team = "platform"
+  }
+}
+```
 
-- **`api_endpoint`** — base URL of the HTTP API
-- **`orchestrator_qualified_arn`** — alias ARN; durable functions must be invoked through this, never the bare function name
-- **`orchestrator_function_name`** / **`api_function_name`** — function names
-- **`posts_bucket`** — output S3 bucket
-- **`executions_table`** — DynamoDB status table
-- **`orchestrator_role_arn`** — orchestrator execution role, for attaching extra permissions
+The module deploys **pre-built zip packages** — your application code and its build stay in your repo. See [examples/complete](examples/complete) for a full working setup, or the companion app repo [`durable-ai-agent-pipeline`](https://github.com/amrutp24/durable-ai-agent-pipeline) this module was extracted from.
+
+Bedrock **model access** must be granted for `model_id` in the deployment region (Bedrock console → Model access) if your orchestrator calls Bedrock.
 
 ## Cost notes
 
@@ -86,6 +85,102 @@ Bedrock **model access** must be granted for `model_id` in the deployment region
 - DynamoDB is pay-per-request; log groups have finite retention.
 - The dominant cost is Bedrock inference (~5–7 Haiku calls per pipeline run — a few cents).
 
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+|------|---------|
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.5 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 6.25.0 |
+| <a name="requirement_random"></a> [random](#requirement\_random) | >= 3.6.0 |
+
+## Providers
+
+| Name | Version |
+|------|---------|
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 6.25.0 |
+| <a name="provider_random"></a> [random](#provider\_random) | >= 3.6.0 |
+
+## Modules
+
+No modules.
+
+## Resources
+
+| Name | Type |
+|------|------|
+| [aws_apigatewayv2_api.http_api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_api) | resource |
+| [aws_apigatewayv2_integration.api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_integration) | resource |
+| [aws_apigatewayv2_route.approve](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
+| [aws_apigatewayv2_route.start](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
+| [aws_apigatewayv2_route.status](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_route) | resource |
+| [aws_apigatewayv2_stage.default](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/apigatewayv2_stage) | resource |
+| [aws_cloudwatch_log_group.api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) | resource |
+| [aws_cloudwatch_log_group.orchestrator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cloudwatch_log_group) | resource |
+| [aws_dynamodb_table.executions](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/dynamodb_table) | resource |
+| [aws_iam_role.api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role.orchestrator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role) | resource |
+| [aws_iam_role_policy.api_inline](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
+| [aws_iam_role_policy.orchestrator_inline](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy) | resource |
+| [aws_iam_role_policy_attachment.api_basic](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
+| [aws_iam_role_policy_attachment.orchestrator_basic](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
+| [aws_iam_role_policy_attachment.orchestrator_durable](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment) | resource |
+| [aws_lambda_alias.orchestrator_prod](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_alias) | resource |
+| [aws_lambda_function.api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function) | resource |
+| [aws_lambda_function.orchestrator](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_function) | resource |
+| [aws_lambda_permission.apigw_invoke_api](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lambda_permission) | resource |
+| [aws_s3_bucket.posts](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket) | resource |
+| [aws_s3_bucket_public_access_block.posts](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_public_access_block) | resource |
+| [aws_s3_bucket_server_side_encryption_configuration.posts](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_server_side_encryption_configuration) | resource |
+| [aws_s3_bucket_versioning.posts](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket_versioning) | resource |
+| [random_id.bucket_suffix](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/id) | resource |
+| [aws_caller_identity.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
+| [aws_iam_policy_document.lambda_assume](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document) | data source |
+| [aws_region.current](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| <a name="input_api_package"></a> [api\_package](#input\_api\_package) | Path to the pre-built zip for the API Lambda (must bundle a boto3 recent enough for SendDurableExecutionCallbackSuccess). | `string` | n/a | yes |
+| <a name="input_orchestrator_package"></a> [orchestrator\_package](#input\_orchestrator\_package) | Path to the pre-built zip for the durable orchestrator Lambda (must bundle aws-durable-execution-sdk-python). | `string` | n/a | yes |
+| <a name="input_api_authorization_type"></a> [api\_authorization\_type](#input\_api\_authorization\_type) | Authorization type for the HTTP API routes. NONE keeps the demo self-contained; AWS\_IAM requires SigV4-signed requests. | `string` | `"NONE"` | no |
+| <a name="input_api_memory_mb"></a> [api\_memory\_mb](#input\_api\_memory\_mb) | Memory for the API Lambda. | `number` | `256` | no |
+| <a name="input_api_reserved_concurrency"></a> [api\_reserved\_concurrency](#input\_api\_reserved\_concurrency) | Reserved concurrent executions for the API Lambda. Set -1 for unreserved. | `number` | `10` | no |
+| <a name="input_api_timeout_seconds"></a> [api\_timeout\_seconds](#input\_api\_timeout\_seconds) | Per-invocation timeout for the API Lambda. | `number` | `30` | no |
+| <a name="input_approval_score_threshold"></a> [approval\_score\_threshold](#input\_approval\_score\_threshold) | Editor score (1-10) at or above which the draft is considered good enough. | `number` | `8` | no |
+| <a name="input_callback_timeout_seconds"></a> [callback\_timeout\_seconds](#input\_callback\_timeout\_seconds) | How long the orchestrator waits for human approval before giving up. | `number` | `86400` | no |
+| <a name="input_durable_execution_timeout_seconds"></a> [durable\_execution\_timeout\_seconds](#input\_durable\_execution\_timeout\_seconds) | Max total lifetime of one durable execution (steps + waits combined). Max 1 year. | `number` | `172800` | no |
+| <a name="input_durable_retention_period_days"></a> [durable\_retention\_period\_days](#input\_durable\_retention\_period\_days) | How long Lambda retains checkpoint/execution history after completion (1-90). | `number` | `7` | no |
+| <a name="input_handler"></a> [handler](#input\_handler) | Lambda handler for both functions (module.function format matching your packaged code). | `string` | `"lambda_function.lambda_handler"` | no |
+| <a name="input_lambda_alias_name"></a> [lambda\_alias\_name](#input\_lambda\_alias\_name) | Name of the alias pointing at the latest published orchestrator version. Durable functions must be invoked via a qualified ARN (version or alias); the alias gives callers a stable name while in-flight executions stay pinned to the version that started them. | `string` | `"prod"` | no |
+| <a name="input_log_retention_days"></a> [log\_retention\_days](#input\_log\_retention\_days) | CloudWatch log retention for both functions. | `number` | `14` | no |
+| <a name="input_max_revisions"></a> [max\_revisions](#input\_max\_revisions) | Max writer/editor revision loops before the draft goes to human approval regardless of score. | `number` | `2` | no |
+| <a name="input_model_id"></a> [model\_id](#input\_model\_id) | Bedrock model or inference-profile ID used by every agent step. Model access must be granted in the deployment region. | `string` | `"us.anthropic.claude-haiku-4-5-20251001-v1:0"` | no |
+| <a name="input_orchestrator_memory_mb"></a> [orchestrator\_memory\_mb](#input\_orchestrator\_memory\_mb) | Memory for the orchestrator Lambda. | `number` | `512` | no |
+| <a name="input_orchestrator_reserved_concurrency"></a> [orchestrator\_reserved\_concurrency](#input\_orchestrator\_reserved\_concurrency) | Reserved concurrent executions for the orchestrator - a cost guardrail against runaway invocations. Set -1 for unreserved. | `number` | `5` | no |
+| <a name="input_orchestrator_timeout_seconds"></a> [orchestrator\_timeout\_seconds](#input\_orchestrator\_timeout\_seconds) | Per-invocation timeout for the orchestrator Lambda (each replay slice, not the whole execution). | `number` | `90` | no |
+| <a name="input_project_name"></a> [project\_name](#input\_project\_name) | Prefix used for all resource names. | `string` | `"durable-ai-agent"` | no |
+| <a name="input_runtime"></a> [runtime](#input\_runtime) | Lambda runtime for both functions. Durable functions support python3.13/python3.14 (and Node.js/Java equivalents). | `string` | `"python3.13"` | no |
+| <a name="input_tags"></a> [tags](#input\_tags) | Tags applied to all resources. | `map(string)` | `{}` | no |
+
+## Outputs
+
+| Name | Description |
+|------|-------------|
+| <a name="output_api_endpoint"></a> [api\_endpoint](#output\_api\_endpoint) | Base URL for the HTTP API. |
+| <a name="output_api_function_name"></a> [api\_function\_name](#output\_api\_function\_name) | Name of the API Lambda function. |
+| <a name="output_executions_table"></a> [executions\_table](#output\_executions\_table) | DynamoDB table tracking pipeline run status. |
+| <a name="output_orchestrator_function_name"></a> [orchestrator\_function\_name](#output\_orchestrator\_function\_name) | Name of the durable orchestrator function. |
+| <a name="output_orchestrator_qualified_arn"></a> [orchestrator\_qualified\_arn](#output\_orchestrator\_qualified\_arn) | Qualified ARN (prod alias) of the durable orchestrator function - use this for invocations. |
+| <a name="output_orchestrator_role_arn"></a> [orchestrator\_role\_arn](#output\_orchestrator\_role\_arn) | Execution role ARN of the orchestrator (for extending permissions). |
+| <a name="output_posts_bucket"></a> [posts\_bucket](#output\_posts\_bucket) | S3 bucket that published drafts land in. |
+<!-- END_TF_DOCS -->
+
+## Authors
+
+Maintained by [Amrut Pagidipally](https://github.com/amrutp24).
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).

@@ -41,6 +41,17 @@ jobs:
       - uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6 # v4.1.1
       - run: tflint --init && tflint
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: terraform-docs up-to-date check
+        uses: terraform-docs/gh-actions@6de6da0cefcc6b4b7a5cbea4d79d97060733093c # v1.4.1
+        with:
+          working-dir: .
+          config-file: .terraform-docs.yml
+          fail-on-diff: "true"
+
   # tfsec was archived into Trivy in 2024; this runs its maintained successor,
   # hard-fail. Accepted exceptions live in .trivyignore with reasons (mirrored
   # in SECURITY_POSTURE.md). SHA below is v0.35.0 - the post-incident release
