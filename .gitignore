@@ -5,3 +5,4 @@
 build/
 *.zip
 .terraform.lock.hcl
+NOTES.local.md

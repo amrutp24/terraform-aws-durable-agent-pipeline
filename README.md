@@ -6,12 +6,6 @@
 
 Terraform module for a **human-in-the-loop AI agent pipeline** on AWS Lambda **durable functions** — the checkpoint/replay execution model AWS launched at re:Invent 2025 that lets a function suspend (for up to a year, at zero compute cost) and resume exactly where it left off.
 
-Durable functions are new and have a few sharp edges — invocation only works through qualified ARNs, callback permissions need a versioned-ARN wildcard that isn't documented anywhere obvious, and the SDK has to be pinned or replays can break. Notes on all of that:
-
-- [DESIGN.md](DESIGN.md) — what we ran into building this, written up so you don't have to
-- [SECURITY_POSTURE.md](SECURITY_POSTURE.md) — which scanner findings are fixed, which are accepted, and why
-- [test/](test) — a live test that runs a full execution through suspend, callback, and resume
-
 The module provisions:
 
 - A **durable Lambda function** (`durable_config` enabled, published version + `prod` alias — durable functions require qualified ARNs)
