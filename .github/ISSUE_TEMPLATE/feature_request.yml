@@ -1,0 +1,22 @@
+name: Feature request
+description: A capability the module should expose
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The use case, not the solution — e.g. "notify a Slack channel instead of polling for pending approvals".
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed interface
+      description: What would the variable/output look like? Sketch is fine.
+  - type: checkboxes
+    id: security
+    attributes:
+      label: Security impact
+      options:
+        - label: This change would widen an IAM grant, expose an API route, or disable a default control (if so, explain above)

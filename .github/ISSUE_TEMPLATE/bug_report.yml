@@ -1,0 +1,33 @@
+name: Bug report
+description: Something the module does wrong
+labels: [bug]
+body:
+  - type: input
+    id: module-version
+    attributes:
+      label: Module version
+      placeholder: "1.2.0"
+    validations:
+      required: true
+  - type: input
+    id: tf-version
+    attributes:
+      label: Terraform and AWS provider versions
+      placeholder: "terraform 1.9.x, aws 6.x"
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Module configuration
+      description: Minimal module block that reproduces the issue (redact account IDs).
+      render: hcl
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected vs. actual behavior
+      description: Include plan/apply output, error messages, or durable-execution console state.
+    validations:
+      required: true
