@@ -2,6 +2,11 @@
 
 All notable changes to this module. Versions follow [SemVer](https://semver.org).
 
+## [1.3.2] - 2026-07-08
+
+### Added
+- Community health files: CONTRIBUTING.md, SECURITY.md (private vulnerability reporting), CODE_OF_CONDUCT.md, issue templates, PR template
+
 ## [1.3.1] - 2026-07-06
 
 ### Changed
